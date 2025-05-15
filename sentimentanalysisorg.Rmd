@@ -1,0 +1,148 @@
+---
+title: "R Notebook"
+output:
+  word_document: default
+  html_notebook: default
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+global id: Bathi1a
+```{r}
+library(tidytext)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(ggraph)
+library(igraph)
+library(reshape2)
+library(ggrepel)
+library(wordcloud)
+library(RColorBrewer)
+library(gridExtra)
+```
+```{r}
+mcu_ethics <- readRDS("~/Desktop/sentiment analysis /mcu_ethics.rds")
+```
+```{r}
+msg_rows <- mcu_ethics %>%
+  mutate(n_number = row_number())
+
+msg_Tidy <- msg_rows %>%
+  unnest_tokens(word, msg)
+```
+```{r}
+msg_Tidy <- msg_Tidy %>% anti_join(stop_words)
+
+```
+
+#1
+```{r}
+english_tweets <- mcu_ethics %>% 
+  filter(lang == "en") %>%
+  nrow()
+print( english_tweets)
+```
+#2
+```{r}
+total_tweets <- nrow(mcu_ethics)
+total_retweets <-  msg_Tidy %>% filter(word == "rt") %>% nrow()
+  
+retweet_ratio <- total_retweets / total_tweets
+
+print(retweet_ratio)
+```
+#3
+```{r}
+tweetswithhyperlink <- msg_Tidy %>% filter(word == "https") %>% nrow()
+print(tweetswithhyperlink)
+```
+#4
+```{r}
+most_popular_source <- msg_Tidy %>%
+count(source) %>% arrange(desc(n)) %>%
+head(1)
+print(most_popular_source)
+```
+```{r}
+msg_Tidy %>%  inner_join(get_sentiments("bing")) %>% filter(sentiment == "positive") %>%
+  count(word, sort = TRUE) %>%
+  head(8)
+```
+```{r}
+msg_Tidy %>% inner_join(get_sentiments("bing")) %>% select(word,sentiment) %>%
+  filter(sentiment=="negative") %>% count(word, sort = TRUE) %>% head(7)
+```
+
+#5
+```{r}
+sentiment_counts <-msg_Tidy %>% inner_join(get_sentiments("bing"), by = c(word = "word")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  group_by(sentiment) %>%
+  top_n(15) %>%
+  ungroup() %>%
+  mutate(word = reorder(word, n)) 
+
+
+positive_plot <- sentiment_counts %>%
+  filter(sentiment == "positive") %>%
+  ggplot(aes(x = word, y = n, fill = sentiment)) +
+  geom_col(show.legend = FALSE, fill = "green") +  
+  labs(title = "Positive Sentiment", x = NULL, y = "Frequency") +
+  coord_flip() +
+  theme_minimal()  
+
+negative_plot <- sentiment_counts %>%
+  filter(sentiment == "negative") %>%
+  ggplot(aes(x = word, y = n, fill = sentiment)) +
+  geom_col(show.legend = FALSE, fill = "red") +  
+  labs(title = "Negative Sentiment", x = NULL, y = "Frequency") +
+  coord_flip() +
+  theme_minimal()   
+
+
+
+grid.arrange(positive_plot, negative_plot, ncol = 2, widths = c(1, 1))
+```
+
+
+#6
+```{r}
+msg_Tidy  %>%
+  inner_join(get_sentiments("bing"), by = c(word = "word")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("black", "blue"),scale = c(4, 1),random.order = FALSE,max.words = 150 )
+
+```
+
+#7 
+```{r}
+msg_Tidy %>%
+count(word, sort = TRUE) %>%
+filter(n >= 2000) %>%
+graph_from_data_frame(directed = FALSE) %>% 
+ggraph(layout = "fr") +
+geom_edge_link(aes(edge_alpha =, edge_width =)) +
+geom_node_point(color = "darkslategray4", size = 3) +
+geom_node_text(aes(label = name), vjust = -1.8, size = 3) +
+labs(title = "Word Network", x = "", y = "") +
+ theme_void()
+
+```
+# professor i am stuck here i unable to understand how to load data in (edge_alpha =  edge_width =)
+
+
+
+
+
+
+
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
